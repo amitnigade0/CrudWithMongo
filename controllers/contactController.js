@@ -2,12 +2,13 @@ const Contact = require("../models/contactModel");
 const asyncHandler = require("express-async-handler");
 
 const getContacts = asyncHandler(async (req, res) => {
-  const contacts = await Contact.find();
+  const contacts = await Contact.find({ user_id: req.user.id });
   res.json(contacts).status(200);
 });
 
 const getContact = asyncHandler(async (req, res) => {
   const contact = await Contact.findById(req.params.id);
+
   if (!contact) {
     res.status(404);
     throw new Error("contact not found");
@@ -25,6 +26,7 @@ const createContact = asyncHandler(async (req, res) => {
     name,
     email,
     phone,
+    user_id: req.user.id
   });
   res.json(createdContact).status(201);
 });
@@ -35,7 +37,12 @@ const updateContact = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error("contact not found");
   }
-  const updatedContact = await Contact.findByIdAndUodate(
+  // only associate user can update contact
+  if (contact.user_id.toString() !== req.user.id) {
+    res.status(403);
+    throw new Error(`You don't have permission to update other user contact`)
+  }
+  const updatedContact = await Contact.findByIdAndUpdate(
     req.params.id,
     req.body,
     { new: true }
@@ -53,7 +60,12 @@ const deleteContact = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error("contact not found");
   }
-  await Contact.remove(req.params.id);
+  // only associate user can delete contact
+  if (contact.user_id.toString() !== req.user.id) {
+    res.status(403);
+    throw new Error(`You don't have permission to update other user contact`)
+  }
+  await Contact.deleteOne({_id: req.params.id});
   res.json(contact).status(200);
 });
 
